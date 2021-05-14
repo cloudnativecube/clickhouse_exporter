@@ -98,49 +98,49 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
-	metrics, err := e.parseKeyValueResponse(e.metricsURI)
-	if err != nil {
-		return fmt.Errorf("Error scraping clickhouse url %v: %v", e.metricsURI, err)
-	}
+	// metrics, err := e.parseKeyValueResponse(e.metricsURI)
+	// if err != nil {
+	// 	return fmt.Errorf("Error scraping clickhouse url %v: %v", e.metricsURI, err)
+	// }
 
-	for _, m := range metrics {
-		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      metricName(m.key),
-			Help:      "Number of " + m.key + " currently processed",
-		}, []string{}).WithLabelValues()
-		newMetric.Set(float64(m.value))
-		newMetric.Collect(ch)
-	}
+	// for _, m := range metrics {
+	// 	newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	// 		Namespace: namespace,
+	// 		Name:      metricName(m.key),
+	// 		Help:      "Number of " + m.key + " currently processed",
+	// 	}, []string{}).WithLabelValues()
+	// 	newMetric.Set(float64(m.value))
+	// 	newMetric.Collect(ch)
+	// }
 
-	asyncMetrics, err := e.parseKeyValueResponse(e.asyncMetricsURI)
-	if err != nil {
-		return fmt.Errorf("Error scraping clickhouse url %v: %v", e.asyncMetricsURI, err)
-	}
+	// asyncMetrics, err := e.parseKeyValueResponse(e.asyncMetricsURI)
+	// if err != nil {
+	// 	return fmt.Errorf("Error scraping clickhouse url %v: %v", e.asyncMetricsURI, err)
+	// }
 
-	for _, am := range asyncMetrics {
-		newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      metricName(am.key),
-			Help:      "Number of " + am.key + " async processed",
-		}, []string{}).WithLabelValues()
-		newMetric.Set(float64(am.value))
-		newMetric.Collect(ch)
-	}
+	// for _, am := range asyncMetrics {
+	// 	newMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	// 		Namespace: namespace,
+	// 		Name:      metricName(am.key),
+	// 		Help:      "Number of " + am.key + " async processed",
+	// 	}, []string{}).WithLabelValues()
+	// 	newMetric.Set(float64(am.value))
+	// 	newMetric.Collect(ch)
+	// }
 
-	events, err := e.parseKeyValueResponse(e.eventsURI)
-	if err != nil {
-		return fmt.Errorf("Error scraping clickhouse url %v: %v", e.eventsURI, err)
-	}
+	// events, err := e.parseKeyValueResponse(e.eventsURI)
+	// if err != nil {
+	// 	return fmt.Errorf("Error scraping clickhouse url %v: %v", e.eventsURI, err)
+	// }
 
-	for _, ev := range events {
-		newMetric, _ := prometheus.NewConstMetric(
-			prometheus.NewDesc(
-				namespace+"_"+metricName(ev.key)+"_total",
-				"Number of "+ev.key+" total processed", []string{}, nil),
-			prometheus.CounterValue, float64(ev.value))
-		ch <- newMetric
-	}
+	// for _, ev := range events {
+	// 	newMetric, _ := prometheus.NewConstMetric(
+	// 		prometheus.NewDesc(
+	// 			namespace+"_"+metricName(ev.key)+"_total",
+	// 			"Number of "+ev.key+" total processed", []string{}, nil),
+	// 		prometheus.CounterValue, float64(ev.value))
+	// 	ch <- newMetric
+	// }
 
 	parts, err := e.parsePartsResponse(e.partsURI)
 	if err != nil {
