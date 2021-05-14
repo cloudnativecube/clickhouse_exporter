@@ -51,7 +51,12 @@ func NewExporter(uri url.URL, insecure bool, user, password string) *Exporter {
 	eventsURI.RawQuery = q.Encode()
 
 	partsURI := uri
-	q.Set("query", "select database, table, sum(bytes) as bytes, count() as parts, sum(rows) as rows from system.parts where active = 1 group by database, table")
+	// q.Set("query", "select database, table, sum(bytes) as bytes, count() as parts, sum(rows) as rows from system.parts where active = 1 group by database, table")
+	q.Set("query", `select p.database as database, p.table as table, p.bytes as bytes, p.parts as parts, p.rows as rows, c.cols as columns from 
+	(select concat(database, table) as rtable, database, table, sum(bytes) as bytes, count() as parts, sum(rows) as rows from system.parts where active = 1 and database!= 'system' group by database, table ) p　
+	join　
+	(select concat(database, table) as rtable , count() as cols from system.columns where database!= 'system' group by database, table) c　
+	on p.rtable=c.rtable order by p.database, p.table`)
 	partsURI.RawQuery = q.Encode()
 
 	return &Exporter{
@@ -150,7 +155,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 	for _, part := range parts {
 		newBytesMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "table_parts_bytes",
+			Name:      "table_bytes",
 			Help:      "Table size in bytes",
 		}, []string{"database", "table"}).WithLabelValues(part.database, part.table)
 		newBytesMetric.Set(float64(part.bytes))
@@ -158,7 +163,7 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 
 		newCountMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "table_parts_count",
+			Name:      "table_parts",
 			Help:      "Number of parts of the table",
 		}, []string{"database", "table"}).WithLabelValues(part.database, part.table)
 		newCountMetric.Set(float64(part.parts))
@@ -166,11 +171,19 @@ func (e *Exporter) collect(ch chan<- prometheus.Metric) error {
 
 		newRowsMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name:      "table_parts_rows",
+			Name:      "table_rows",
 			Help:      "Number of rows in the table",
 		}, []string{"database", "table"}).WithLabelValues(part.database, part.table)
 		newRowsMetric.Set(float64(part.rows))
 		newRowsMetric.Collect(ch)
+
+		newColumnsMetric := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name:      "table_colunms",
+			Help:      "Number of colunms in the table",
+		}, []string{"database", "table"}).WithLabelValues(part.database, part.table)
+		newColumnsMetric.Set(float64(part.columns))
+		newColumnsMetric.Collect(ch)
 	}
 
 	return nil
@@ -259,6 +272,7 @@ type partsResult struct {
 	bytes    int
 	parts    int
 	rows     int
+	columns  int
 }
 
 func (e *Exporter) parsePartsResponse(uri string) ([]partsResult, error) {
@@ -276,7 +290,7 @@ func (e *Exporter) parsePartsResponse(uri string) ([]partsResult, error) {
 		if len(parts) == 0 {
 			continue
 		}
-		if len(parts) != 5 {
+		if len(parts) != 6 {
 			return nil, fmt.Errorf("parsePartsResponse: unexpected %d line: %s", i, line)
 		}
 		database := strings.TrimSpace(parts[0])
@@ -297,7 +311,12 @@ func (e *Exporter) parsePartsResponse(uri string) ([]partsResult, error) {
 			return nil, err
 		}
 
-		results = append(results, partsResult{database, table, bytes, count, rows})
+		columns, err := strconv.Atoi(strings.TrimSpace(parts[5]))
+		if err != nil {
+			return nil, err
+		}
+
+		results = append(results, partsResult{database, table, bytes, count, rows, columns})
 	}
 
 	return results, nil
